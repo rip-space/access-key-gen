@@ -1,19 +1,55 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Task 1 – Gamble for Access Key</title>
+  <title>CoolGuys Tasks</title>
   <style>
-    body { font-family: Arial; text-align: center; margin-top: 60px; }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      color: white;
+      background: linear-gradient(120deg, #1e1e1e, #3a3a3a, #1e1e1e);
+      background-size: 300% 300%;
+      animation: bgMove 12s infinite;
+    }
 
-    #result {
+    @keyframes bgMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    button {
+      padding: 12px 25px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      background: #4a90e2;
+      color: white;
+      transition: 0.2s;
+    }
+
+    button:disabled {
+      background: #777;
+      cursor: not-allowed;
+    }
+
+    #result, #aiResult {
       margin-top: 20px;
       font-size: 24px;
-      transition: 0.3s;
+      min-height: 40px;
     }
 
     /* Trash effect */
     .trash {
-      color: #666;
+      color: #bbbbbb;
       filter: blur(1px);
     }
 
@@ -38,68 +74,134 @@
       from { opacity: 0.7; }
       to { opacity: 1; }
     }
-  </style>
 
-  <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-    const supabase = createClient(
-      "https://YOUR_PROJECT_ID.supabase.co",
-      "YOUR_ANON_KEY"
-    );
-
-    let cooldown = false;
-
-    async function gamble() {
-      if (cooldown) return;
-
-      cooldown = true;
-      let btn = document.getElementById("btn");
-      let result = document.getElementById("result");
-
-      // 3 second cooldown
-      let time = 3;
-      btn.disabled = true;
-      let interval = setInterval(() => {
-        btn.innerText = `Wait ${time}s`;
-        time--;
-        if (time < 0) {
-          clearInterval(interval);
-          btn.disabled = false;
-          btn.innerText = "Gamble";
-          cooldown = false;
-        }
-      }, 1000);
-
-      // Roll 1–500
-      let roll = Math.floor(Math.random() * 500) + 1;
-
-      if (roll === 1) {
-        // WINNER — generate key
-        let key = Math.floor(Math.random() * 100000) + 1;
-
-        // Save cookie
-        document.cookie = `password=${key}; path=/; SameSite=Lax`;
-
-        // Save to Supabase
-        await supabase.from("access_keys").insert({ value: key });
-
-        // Heavenly effect
-        result.className = "heaven";
-        result.innerText = `✨ YOU GOT THE KEY! (${key}) ✨`;
-
-      } else {
-        // Trash result
-        result.className = "trash flies";
-        result.innerText = "💩 Trash… try again";
-      }
+    hr {
+      width: 60%;
+      margin: 40px auto;
+      border: 1px solid #555;
     }
-  </script>
+  </style>
 </head>
 
 <body>
-  <h1>Task 1: Gamble for the Access Key</h1>
-  <button id="btn" onclick="gamble()">Gamble</button>
+
+  <h1>Task 1: Gamble (1/500 Chance)</h1>
+  <button id="btn1" onclick="task1()">Gamble</button>
   <div id="result"></div>
+
+  <hr>
+
+  <h1>Task 2: Outsmart the AI (Win 5 Times in a Row)</h1>
+  <button id="aiBtn" onclick="task2()">Outsmart the AI</button>
+  <div id="aiResult"></div>
+  <div id="aiStreak" style="margin-top:10px; font-size:20px;">Streak: 0/5</div>
+
+<script>
+/* ---------------- TASK 1: GAMBLE ---------------- */
+
+let t1Cooldown = false;
+
+function task1() {
+  if (t1Cooldown) return;
+
+  t1Cooldown = true;
+  let btn = document.getElementById("btn1");
+  let result = document.getElementById("result");
+
+  // Cooldown
+  let time = 3;
+  btn.disabled = true;
+  let interval = setInterval(() => {
+    btn.innerText = `Wait ${time}s`;
+    time--;
+    if (time < 0) {
+      clearInterval(interval);
+      btn.disabled = false;
+      btn.innerText = "Gamble";
+      t1Cooldown = false;
+    }
+  }, 1000);
+
+  // Roll 1–500
+  let roll = Math.floor(Math.random() * 500) + 1;
+
+  if (roll === 1) {
+    // WINNER — generate key
+    let key = Math.floor(Math.random() * 100000) + 1;
+
+    document.cookie = `password=${key}; path=/; SameSite=Lax`;
+
+    result.className = "heaven";
+    result.innerText = `✨ YOU GOT THE KEY! (${key}) ✨`;
+
+  } else {
+    result.className = "trash flies";
+    result.innerText = "💩 Trash… try again";
+  }
+}
+
+/* ---------------- TASK 2: OUTSMART AI ---------------- */
+
+let t2Cooldown = false;
+let historyMoves = [];
+let streak = 0;
+
+function task2() {
+  if (t2Cooldown) return;
+
+  t2Cooldown = true;
+  let btn = document.getElementById("aiBtn");
+  let result = document.getElementById("aiResult");
+  let streakBox = document.getElementById("aiStreak");
+
+  // Cooldown
+  let time = 3;
+  btn.disabled = true;
+  let interval = setInterval(() => {
+    btn.innerText = `Wait ${time}s`;
+    time--;
+    if (time < 0) {
+      clearInterval(interval);
+      btn.disabled = false;
+      btn.innerText = "Outsmart the AI";
+      t2Cooldown = false;
+    }
+  }, 1000);
+
+  // Player move
+  let playerMove = Math.floor(Math.random() * 3) + 1;
+
+  // Add to history
+  historyMoves.push(playerMove);
+  if (historyMoves.length > 5) historyMoves.shift();
+
+  // AI predicts based on your most common move
+  let counts = {1:0, 2:0, 3:0};
+  historyMoves.forEach(m => counts[m]++);
+
+  let aiGuess = Object.keys(counts).reduce((a,b) => counts[a] > counts[b] ? a : b);
+  aiGuess = Number(aiGuess);
+
+  if (aiGuess === playerMove) {
+    streak = 0;
+    result.className = "trash flies";
+    result.innerText = "💩 The AI predicted you. Streak reset.";
+  } else {
+    streak++;
+    result.className = "heaven";
+    result.innerText = `✨ You beat the AI! (${streak}/5) ✨`;
+
+    if (streak >= 5) {
+      let key = Math.floor(Math.random() * 100000) + 1;
+      document.cookie = `password=${key}; path=/; SameSite=Lax`;
+      result.innerText = `🌟 YOU OUTSMARTED THE AI 5 TIMES! KEY: ${key} 🌟`;
+      streak = 0;
+    }
+  }
+
+  streakBox.innerText = `Streak: ${streak}/5`;
+}
+</script>
+
 </body>
 </html>
