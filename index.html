@@ -120,7 +120,9 @@
 
 <script>
 
-/* ===== 24 HOUR KEY SYSTEM ===== */
+/* ===============================
+   24 HOUR KEY SYSTEM
+================================= */
 
 function getCookie(name) {
   let match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -129,17 +131,17 @@ function getCookie(name) {
 
 function setCookie(name, value, hours) {
   let d = new Date();
-  d.setTime(d.getTime() + (hours*60*60*1000));
+  d.setTime(d.getTime() + (hours * 60 * 60 * 1000));
   document.cookie = `${name}=${value}; expires=${d.toUTCString()}; path=/; SameSite=Lax`;
 }
 
-let existingKey = getCookie("vaultKey");
-if (!existingKey) {
-  let newKey = Math.floor(Math.random() * 100000) + 1;
-  setCookie("vaultKey", newKey, 24);
+if (!getCookie("vaultKey")) {
+  setCookie("vaultKey", Math.floor(Math.random() * 100000) + 1, 24);
 }
 
-/* ---------------- TASK 1 ---------------- */
+/* ===============================
+   TASK 1 (UNCHANGED)
+================================= */
 
 let t1Cooldown = false;
 
@@ -147,8 +149,8 @@ function task1() {
   if (t1Cooldown) return;
 
   t1Cooldown = true;
-  let btn = document.getElementById("btn1");
-  let result = document.getElementById("result");
+  const btn = document.getElementById("btn1");
+  const result = document.getElementById("result");
 
   btn.disabled = true;
   btn.innerText = "Wait 1s";
@@ -159,91 +161,133 @@ function task1() {
     t1Cooldown = false;
   }, 1000);
 
-  let roll = Math.floor(Math.random() * 500) + 1;
-
-  if (roll === 1) {
-    let key = getCookie("vaultKey");
+  if (Math.floor(Math.random() * 500) === 0) {
     result.className = "heaven";
-    result.innerText = `✨ YOU GOT THE KEY! (${key}) ✨`;
+    result.innerText = `✨ YOU GOT THE KEY! (${getCookie("vaultKey")}) ✨`;
   } else {
     result.className = "trash flies";
     result.innerText = "💩 Trash… try again";
   }
 }
 
-/* ---------------- TASK 2 ---------------- */
+/* ===============================
+   TASK 2 CLEAN ENGINE
+================================= */
 
-let bombTime = 120;
 let gameActive = false;
+let bombTime = 120;
 let cops = [];
-let timerInterval;
-let spawnInterval;
+let lastFrame = 0;
+let spawnTimer = 0;
+let defuseTimer = 0;
+let defuseBtn = null;
 let cooldownKey = "vaultCooldown";
 
-let lastMX = 0;
-let lastMY = 0;
+let mouse = { x: 0, y: 0 };
+let lastMouse = { x: 0, y: 0 };
 let invincibleUntil = 0;
 
+const area = document.getElementById("gameArea");
+
 function startGame() {
-  let cooldown = localStorage.getItem(cooldownKey);
-  if (cooldown && Date.now() < cooldown) {
+  const cd = localStorage.getItem(cooldownKey);
+  if (cd && Date.now() < cd) {
     document.getElementById("aiResult").innerText =
       "⏳ Wait before retrying!";
     return;
   }
 
+  resetCore();
+
   gameActive = true;
   bombTime = 120;
   cops = [];
+  spawnTimer = 0;
 
-  let area = document.getElementById("gameArea");
-  area.innerHTML = "";
   area.style.display = "block";
 
-  timerInterval = setInterval(() => {
-    bombTime--;
-    document.getElementById("timer").innerText = "Time: " + bombTime;
-
-    if (bombTime <= 0) winGame();
-  }, 1000);
-
-  spawnInterval = setInterval(spawnCop, 9000); // faster spawn
+  lastFrame = performance.now();
+  requestAnimationFrame(gameLoop);
   spawnDefuse();
 }
 
 function spawnCop() {
-  if (!gameActive) return;
-
-  let area = document.getElementById("gameArea");
-  let cop = document.createElement("div");
-  cop.className = "cop";
-  cop.style.left = Math.random() * 760 + "px";
-  cop.style.top = Math.random() * 410 + "px";
-  area.appendChild(cop);
+  const el = document.createElement("div");
+  el.className = "cop";
+  el.style.left = Math.random() * 760 + "px";
+  el.style.top = Math.random() * 410 + "px";
+  area.appendChild(el);
 
   cops.push({
-    el: cop,
+    el,
+    x: el.offsetLeft,
+    y: el.offsetTop,
     stunned: false,
     stunUntil: 0,
-    spawnTime: Date.now()
+    spawnTime: performance.now()
   });
 }
 
-document.addEventListener("mousemove", e => {
+function spawnDefuse() {
   if (!gameActive) return;
 
-  const area = document.getElementById("gameArea");
+  if (defuseBtn) defuseBtn.remove();
+
+  defuseBtn = document.createElement("button");
+  defuseBtn.className = "defuseBtn";
+  defuseBtn.innerText = "DEFUSE";
+  defuseBtn.style.left = Math.random() * 700 + "px";
+  defuseBtn.style.top = Math.random() * 350 + "px";
+
+  area.appendChild(defuseBtn);
+
+  defuseTimer = performance.now();
+
+  defuseBtn.onclick = () => {
+    defuseBtn.remove();
+    defuseBtn = null;
+    setTimeout(spawnDefuse, 2000);
+  };
+}
+
+document.addEventListener("mousemove", e => {
   const rect = area.getBoundingClientRect();
+  mouse.x = e.clientX - rect.left;
+  mouse.y = e.clientY - rect.top;
+});
 
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
+function gameLoop(now) {
+  if (!gameActive) return;
 
-  const now = Date.now();
-  const moveSpeed = Math.hypot(mx - lastMX, my - lastMY);
+  const delta = (now - lastFrame) / 1000;
+  lastFrame = now;
+
+  bombTime -= delta;
+  document.getElementById("timer").innerText =
+    "Time: " + Math.max(0, Math.floor(bombTime));
+
+  if (bombTime <= 0) return winGame();
+
+  spawnTimer += delta;
+  if (spawnTimer >= 9) {
+    spawnTimer = 0;
+    spawnCop();
+  }
+
+  if (defuseBtn && now - defuseTimer > 5000) {
+    return resetGame("💥 You hesitated!");
+  }
+
+  updateCops(delta, now);
+
+  requestAnimationFrame(gameLoop);
+}
+
+function updateCops(delta, now) {
+  const moveSpeed = Math.hypot(mouse.x - lastMouse.x, mouse.y - lastMouse.y);
 
   cops.forEach(c => {
 
-    // 0.3s spawn protection
     if (now - c.spawnTime < 300) return;
 
     if (c.stunned && now > c.stunUntil) {
@@ -251,73 +295,43 @@ document.addEventListener("mousemove", e => {
       c.el.classList.remove("stunned");
     }
 
-    const cx = c.el.offsetLeft + 14;
-    const cy = c.el.offsetTop + 14;
+    const cx = c.x + 14;
+    const cy = c.y + 14;
 
-    const dx = mx - cx;
-    const dy = my - cy;
+    const dx = mouse.x - cx;
+    const dy = mouse.y - cy;
     const dist = Math.hypot(dx, dy);
 
-    const copRadius = 14;
-    const playerRadius = 6;
-
-    if (dist < copRadius + playerRadius && now > invincibleUntil) {
-      loseGame();
-      return;
+    if (dist < 20 && now > invincibleUntil) {
+      return loseGame();
     }
 
-    // fast juke required
-    if (!c.stunned && dist < 50 && moveSpeed > 30) {
+    if (!c.stunned && dist < 55 && moveSpeed > 28) {
       c.stunned = true;
       c.stunUntil = now + 1500;
       c.el.classList.add("stunned");
       invincibleUntil = now + 300;
     }
 
-    if (!c.stunned) {
+    if (!c.stunned && dist > 0) {
+      const baseSpeed = 280;
+      const difficultyBoost = (120 - bombTime) * 2;
+      const speed = (baseSpeed + difficultyBoost) * delta;
 
-      // speed scales up slowly
-      let baseSpeed = 2.6;
-      let difficultyBoost = (120 - bombTime) * 0.015;
-      let speed = baseSpeed + difficultyBoost;
+      c.x += (dx / dist) * speed;
+      c.y += (dy / dist) * speed;
 
-      if (dist > 0) {
-        c.el.style.left =
-          c.el.offsetLeft + (dx / dist) * speed + "px";
-        c.el.style.top =
-          c.el.offsetTop + (dy / dist) * speed + "px";
-      }
+      c.el.style.left = c.x + "px";
+      c.el.style.top = c.y + "px";
     }
   });
 
-  lastMX = mx;
-  lastMY = my;
-});
-
-function spawnDefuse() {
-  if (!gameActive) return;
-
-  let area = document.getElementById("gameArea");
-  let btn = document.createElement("button");
-  btn.className = "defuseBtn";
-  btn.innerText = "DEFUSE";
-  btn.style.left = Math.random() * 700 + "px";
-  btn.style.top = Math.random() * 350 + "px";
-  area.appendChild(btn);
-
-  let timeout = setTimeout(() => {
-    resetGame("💥 You hesitated!");
-  }, 5000);
-
-  btn.onclick = () => {
-    clearTimeout(timeout);
-    btn.remove();
-    setTimeout(spawnDefuse, 2000);
-  };
+  lastMouse.x = mouse.x;
+  lastMouse.y = mouse.y;
 }
 
 function winGame() {
-  let key = getCookie("vaultKey");
+  const key = getCookie("vaultKey");
   resetCore();
   document.getElementById("aiResult").innerText =
     "🌟 Vault Opened! KEY: " + key;
@@ -335,11 +349,11 @@ function resetGame(msg) {
 
 function resetCore() {
   gameActive = false;
-  clearInterval(timerInterval);
-  clearInterval(spawnInterval);
-  document.getElementById("gameArea").style.display = "none";
-  document.getElementById("gameArea").innerHTML = "";
+  cops = [];
+  area.innerHTML = "";
+  area.style.display = "none";
   document.getElementById("timer").innerText = "";
+  defuseBtn = null;
 }
 
 </script>
