@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Task 1 – Gamble for Access Key</title>
+  <style>
+    body { font-family: Arial; text-align: center; margin-top: 60px; }
+
+    #result {
+      margin-top: 20px;
+      font-size: 24px;
+      transition: 0.3s;
+    }
+
+    /* Trash effect */
+    .trash {
+      color: #666;
+      filter: blur(1px);
+    }
+
+    .flies::after {
+      content: " 🪰🪰🪰";
+      animation: buzz 0.4s infinite alternate;
+    }
+
+    @keyframes buzz {
+      from { transform: translateX(-3px); }
+      to { transform: translateX(3px); }
+    }
+
+    /* Heavenly effect */
+    .heaven {
+      color: gold;
+      text-shadow: 0 0 10px gold, 0 0 20px white;
+      animation: glow 1s infinite alternate;
+    }
+
+    @keyframes glow {
+      from { opacity: 0.7; }
+      to { opacity: 1; }
+    }
+  </style>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    const supabase = createClient(
+      "https://YOUR_PROJECT_ID.supabase.co",
+      "YOUR_ANON_KEY"
+    );
+
+    let cooldown = false;
+
+    async function gamble() {
+      if (cooldown) return;
+
+      cooldown = true;
+      let btn = document.getElementById("btn");
+      let result = document.getElementById("result");
+
+      // 3 second cooldown
+      let time = 3;
+      btn.disabled = true;
+      let interval = setInterval(() => {
+        btn.innerText = `Wait ${time}s`;
+        time--;
+        if (time < 0) {
+          clearInterval(interval);
+          btn.disabled = false;
+          btn.innerText = "Gamble";
+          cooldown = false;
+        }
+      }, 1000);
+
+      // Roll 1–500
+      let roll = Math.floor(Math.random() * 500) + 1;
+
+      if (roll === 1) {
+        // WINNER — generate key
+        let key = Math.floor(Math.random() * 100000) + 1;
+
+        // Save cookie
+        document.cookie = `password=${key}; path=/; SameSite=Lax`;
+
+        // Save to Supabase
+        await supabase.from("access_keys").insert({ value: key });
+
+        // Heavenly effect
+        result.className = "heaven";
+        result.innerText = `✨ YOU GOT THE KEY! (${key}) ✨`;
+
+      } else {
+        // Trash result
+        result.className = "trash flies";
+        result.innerText = "💩 Trash… try again";
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <h1>Task 1: Gamble for the Access Key</h1>
+  <button id="btn" onclick="gamble()">Gamble</button>
+  <div id="result"></div>
+</body>
+</html>
