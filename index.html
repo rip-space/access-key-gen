@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>CoolGuys Tasks</title>
+  <meta charset="UTF-8">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,9 +14,10 @@
       flex-direction: column;
       justify-content: center;
       color: white;
-      background: linear-gradient(120deg, #1e1e1e, #3a3a3a, #1e1e1e);
+      background: linear-gradient(120deg, #111, #000, #111);
       background-size: 300% 300%;
-      animation: bgMove 12s infinite;
+      animation: bgMove 10s infinite;
+      overflow: hidden;
     }
 
     @keyframes bgMove {
@@ -31,73 +33,113 @@
       border-radius: 8px;
       cursor: pointer;
       margin-top: 10px;
-      background: #4a90e2;
+      background: linear-gradient(90deg,#00f2ff,#ff00c8);
       color: white;
+      font-weight: bold;
       transition: 0.2s;
     }
 
-    button:disabled {
-      background: #777;
-      cursor: not-allowed;
-    }
+    button:hover { transform: scale(1.1); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    #result, #aiResult {
-      margin-top: 20px;
-      font-size: 24px;
-      min-height: 40px;
-    }
+    .trash { color: #bbb; filter: blur(1px); }
+    .flies::after { content: " 🪰"; }
 
-    /* Trash effect */
-    .trash {
-      color: #bbbbbb;
-      filter: blur(1px);
-    }
-
-    .flies::after {
-      content: " 🪰🪰🪰";
-      animation: buzz 0.4s infinite alternate;
-    }
-
-    @keyframes buzz {
-      from { transform: translateX(-3px); }
-      to { transform: translateX(3px); }
-    }
-
-    /* Heavenly effect */
     .heaven {
       color: gold;
       text-shadow: 0 0 10px gold, 0 0 20px white;
-      animation: glow 1s infinite alternate;
-    }
-
-    @keyframes glow {
-      from { opacity: 0.7; }
-      to { opacity: 1; }
     }
 
     hr {
       width: 60%;
-      margin: 40px auto;
-      border: 1px solid #555;
+      margin: 30px auto;
+      border: 1px solid #444;
+    }
+
+    /* ===== NEW GAME UI ===== */
+
+    #gameArea {
+      position: relative;
+      width: 800px;
+      height: 450px;
+      margin: 20px auto;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(12px);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      overflow: hidden;
+      display: none;
+      box-shadow: 0 0 40px rgba(0,255,255,0.3);
+    }
+
+    .cop {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      background: red;
+      border-radius: 50%;
+      box-shadow: 0 0 15px red;
+    }
+
+    .stunned {
+      background: cyan !important;
+      box-shadow: 0 0 20px cyan;
+    }
+
+    .defuseBtn {
+      position: absolute;
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      font-weight: bold;
+      background: linear-gradient(90deg,#00f2ff,#ff00c8);
+      color: white;
+      cursor: pointer;
+    }
+
+    #timer {
+      font-size: 20px;
+      margin-top: 10px;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>Task 1: Gamble (1/500 Chance)</h1>
+  <h2>Task 1: Gamble (1/500 Chance)</h2>
   <button id="btn1" onclick="task1()">Gamble</button>
   <div id="result"></div>
 
   <hr>
 
-  <h1>Task 2: Outsmart the AI (Win 5 Times in a Row)</h1>
-  <button id="aiBtn" onclick="task2()">Outsmart the AI</button>
+  <h2>Task 2: Trick the AI Into Saying “NO”</h2>
+  <button id="startBtn" onclick="startGame()">Start</button>
+  <div id="timer"></div>
   <div id="aiResult"></div>
-  <div id="aiStreak" style="margin-top:10px; font-size:20px;">Streak: 0/5</div>
+  <div id="gameArea"></div>
 
 <script>
-/* ---------------- TASK 1: GAMBLE ---------------- */
+
+/* ===== 24 HOUR KEY SYSTEM ===== */
+
+function getCookie(name) {
+  let match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? match[2] : null;
+}
+
+function setCookie(name, value, hours) {
+  let d = new Date();
+  d.setTime(d.getTime() + (hours*60*60*1000));
+  document.cookie = `${name}=${value}; expires=${d.toUTCString()}; path=/; SameSite=Lax`;
+}
+
+let existingKey = getCookie("vaultKey");
+if (!existingKey) {
+  let newKey = Math.floor(Math.random() * 100000) + 1;
+  setCookie("vaultKey", newKey, 24);
+}
+
+/* ---------------- TASK 1 ---------------- */
 
 let t1Cooldown = false;
 
@@ -108,99 +150,159 @@ function task1() {
   let btn = document.getElementById("btn1");
   let result = document.getElementById("result");
 
-  // Cooldown
-  let time = 3;
   btn.disabled = true;
-  let interval = setInterval(() => {
-    btn.innerText = `Wait ${time}s`;
-    time--;
-    if (time < 0) {
-      clearInterval(interval);
-      btn.disabled = false;
-      btn.innerText = "Gamble";
-      t1Cooldown = false;
-    }
+  btn.innerText = "Wait 1s";
+
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.innerText = "Gamble";
+    t1Cooldown = false;
   }, 1000);
 
-  // Roll 1–500
   let roll = Math.floor(Math.random() * 500) + 1;
 
   if (roll === 1) {
-    // WINNER — generate key
-    let key = Math.floor(Math.random() * 100000) + 1;
-
-    document.cookie = `password=${key}; path=/; SameSite=Lax`;
-
+    let key = getCookie("vaultKey");
     result.className = "heaven";
     result.innerText = `✨ YOU GOT THE KEY! (${key}) ✨`;
-
   } else {
     result.className = "trash flies";
     result.innerText = "💩 Trash… try again";
   }
 }
 
-/* ---------------- TASK 2: OUTSMART AI ---------------- */
+/* ---------------- TASK 2 BOMB GAME ---------------- */
 
-let t2Cooldown = false;
-let historyMoves = [];
-let streak = 0;
+let bombTime = 120;
+let gameActive = false;
+let cops = [];
+let timerInterval;
+let spawnInterval;
+let cooldownKey = "vaultCooldown";
 
-function task2() {
-  if (t2Cooldown) return;
-
-  t2Cooldown = true;
-  let btn = document.getElementById("aiBtn");
-  let result = document.getElementById("aiResult");
-  let streakBox = document.getElementById("aiStreak");
-
-  // Cooldown
-  let time = 3;
-  btn.disabled = true;
-  let interval = setInterval(() => {
-    btn.innerText = `Wait ${time}s`;
-    time--;
-    if (time < 0) {
-      clearInterval(interval);
-      btn.disabled = false;
-      btn.innerText = "Outsmart the AI";
-      t2Cooldown = false;
-    }
-  }, 1000);
-
-  // Player move
-  let playerMove = Math.floor(Math.random() * 3) + 1;
-
-  // Add to history
-  historyMoves.push(playerMove);
-  if (historyMoves.length > 5) historyMoves.shift();
-
-  // AI predicts based on your most common move
-  let counts = {1:0, 2:0, 3:0};
-  historyMoves.forEach(m => counts[m]++);
-
-  let aiGuess = Object.keys(counts).reduce((a,b) => counts[a] > counts[b] ? a : b);
-  aiGuess = Number(aiGuess);
-
-  if (aiGuess === playerMove) {
-    streak = 0;
-    result.className = "trash flies";
-    result.innerText = "💩 The AI predicted you. Streak reset.";
-  } else {
-    streak++;
-    result.className = "heaven";
-    result.innerText = `✨ You beat the AI! (${streak}/5) ✨`;
-
-    if (streak >= 5) {
-      let key = Math.floor(Math.random() * 100000) + 1;
-      document.cookie = `password=${key}; path=/; SameSite=Lax`;
-      result.innerText = `🌟 YOU OUTSMARTED THE AI 5 TIMES! KEY: ${key} 🌟`;
-      streak = 0;
-    }
+function startGame() {
+  let cooldown = localStorage.getItem(cooldownKey);
+  if (cooldown && Date.now() < cooldown) {
+    document.getElementById("aiResult").innerText =
+      "⏳ Wait before retrying!";
+    return;
   }
 
-  streakBox.innerText = `Streak: ${streak}/5`;
+  gameActive = true;
+  bombTime = 120;
+  cops = [];
+
+  let area = document.getElementById("gameArea");
+  area.innerHTML = "";
+  area.style.display = "block";
+
+  timerInterval = setInterval(() => {
+    bombTime--;
+    document.getElementById("timer").innerText = "Time: " + bombTime;
+
+    if (bombTime <= 0) winGame();
+  }, 1000);
+
+  spawnInterval = setInterval(spawnCop, 10000);
+  spawnDefuse();
 }
+
+function spawnCop() {
+  if (!gameActive) return;
+
+  let area = document.getElementById("gameArea");
+  let cop = document.createElement("div");
+  cop.className = "cop";
+  cop.style.left = Math.random() * 760 + "px";
+  cop.style.top = Math.random() * 410 + "px";
+  area.appendChild(cop);
+
+  cops.push({ el: cop, stunned: false, stunUntil: 0 });
+}
+
+document.addEventListener("mousemove", e => {
+  if (!gameActive) return;
+
+  let rect = document.getElementById("gameArea").getBoundingClientRect();
+  let mx = e.clientX - rect.left;
+  let my = e.clientY - rect.top;
+
+  cops.forEach(c => {
+    if (c.stunned && Date.now() > c.stunUntil) {
+      c.stunned = false;
+      c.el.classList.remove("stunned");
+    }
+
+    if (!c.stunned) {
+      let cx = c.el.offsetLeft;
+      let cy = c.el.offsetTop;
+      let dx = mx - cx;
+      let dy = my - cy;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+
+      if (dist < 15) loseGame();
+
+      if (dist < 60) {
+        c.stunned = true;
+        c.stunUntil = Date.now() + 2000;
+        c.el.classList.add("stunned");
+      }
+
+      let speed = 2.5;
+      c.el.style.left = cx + dx/dist * speed + "px";
+      c.el.style.top = cy + dy/dist * speed + "px";
+    }
+  });
+});
+
+function spawnDefuse() {
+  if (!gameActive) return;
+
+  let area = document.getElementById("gameArea");
+  let btn = document.createElement("button");
+  btn.className = "defuseBtn";
+  btn.innerText = "DEFUSE";
+  btn.style.left = Math.random() * 700 + "px";
+  btn.style.top = Math.random() * 350 + "px";
+  area.appendChild(btn);
+
+  let timeout = setTimeout(() => {
+    resetGame("💥 You hesitated!");
+  }, 5000);
+
+  btn.onclick = () => {
+    clearTimeout(timeout);
+    btn.remove();
+    setTimeout(spawnDefuse, 2000);
+  };
+}
+
+function winGame() {
+  let key = getCookie("vaultKey");
+  resetCore();
+  document.getElementById("aiResult").innerText =
+    "🌟 Vault Opened! KEY: " + key;
+}
+
+function loseGame() {
+  localStorage.setItem(cooldownKey, Date.now() + 60000);
+  resetGame("👮 Caught! 1 minute cooldown.");
+}
+
+function resetGame(msg) {
+  resetCore();
+  document.getElementById("aiResult").innerText = msg;
+}
+
+function resetCore() {
+  gameActive = false;
+  clearInterval(timerInterval);
+  clearInterval(spawnInterval);
+  document.getElementById("gameArea").style.display = "none";
+  document.getElementById("gameArea").innerHTML = "";
+  document.getElementById("timer").innerText = "";
+}
+
 </script>
 
 </body>
