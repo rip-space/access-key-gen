@@ -112,7 +112,7 @@
 
   <hr>
 
-  <h2>Task 2: Trick the AI Into Saying “NO”</h2>
+  <h2>Task 2: Ecsape ICE ”</h2>
   <button id="startBtn" onclick="startGame()">Start</button>
   <div id="timer"></div>
   <div id="aiResult"></div>
@@ -171,7 +171,7 @@ function task1() {
   }
 }
 
-/* ---------------- TASK 2 BOMB GAME ---------------- */
+/* ---------------- TASK 2 ---------------- */
 
 let bombTime = 120;
 let gameActive = false;
@@ -179,6 +179,10 @@ let cops = [];
 let timerInterval;
 let spawnInterval;
 let cooldownKey = "vaultCooldown";
+
+let lastMX = 0;
+let lastMY = 0;
+let invincibleUntil = 0;
 
 function startGame() {
   let cooldown = localStorage.getItem(cooldownKey);
@@ -203,7 +207,7 @@ function startGame() {
     if (bombTime <= 0) winGame();
   }, 1000);
 
-  spawnInterval = setInterval(spawnCop, 10000);
+  spawnInterval = setInterval(spawnCop, 9000); // faster spawn
   spawnDefuse();
 }
 
@@ -217,42 +221,77 @@ function spawnCop() {
   cop.style.top = Math.random() * 410 + "px";
   area.appendChild(cop);
 
-  cops.push({ el: cop, stunned: false, stunUntil: 0 });
+  cops.push({
+    el: cop,
+    stunned: false,
+    stunUntil: 0,
+    spawnTime: Date.now()
+  });
 }
 
 document.addEventListener("mousemove", e => {
   if (!gameActive) return;
 
-  let rect = document.getElementById("gameArea").getBoundingClientRect();
-  let mx = e.clientX - rect.left;
-  let my = e.clientY - rect.top;
+  const area = document.getElementById("gameArea");
+  const rect = area.getBoundingClientRect();
+
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const now = Date.now();
+  const moveSpeed = Math.hypot(mx - lastMX, my - lastMY);
 
   cops.forEach(c => {
-    if (c.stunned && Date.now() > c.stunUntil) {
+
+    // 0.3s spawn protection
+    if (now - c.spawnTime < 300) return;
+
+    if (c.stunned && now > c.stunUntil) {
       c.stunned = false;
       c.el.classList.remove("stunned");
     }
 
+    const cx = c.el.offsetLeft + 14;
+    const cy = c.el.offsetTop + 14;
+
+    const dx = mx - cx;
+    const dy = my - cy;
+    const dist = Math.hypot(dx, dy);
+
+    const copRadius = 14;
+    const playerRadius = 6;
+
+    if (dist < copRadius + playerRadius && now > invincibleUntil) {
+      loseGame();
+      return;
+    }
+
+    // fast juke required
+    if (!c.stunned && dist < 50 && moveSpeed > 30) {
+      c.stunned = true;
+      c.stunUntil = now + 1500;
+      c.el.classList.add("stunned");
+      invincibleUntil = now + 300;
+    }
+
     if (!c.stunned) {
-      let cx = c.el.offsetLeft;
-      let cy = c.el.offsetTop;
-      let dx = mx - cx;
-      let dy = my - cy;
-      let dist = Math.sqrt(dx*dx + dy*dy);
 
-      if (dist < 15) loseGame();
+      // speed scales up slowly
+      let baseSpeed = 2.6;
+      let difficultyBoost = (120 - bombTime) * 0.015;
+      let speed = baseSpeed + difficultyBoost;
 
-      if (dist < 60) {
-        c.stunned = true;
-        c.stunUntil = Date.now() + 2000;
-        c.el.classList.add("stunned");
+      if (dist > 0) {
+        c.el.style.left =
+          c.el.offsetLeft + (dx / dist) * speed + "px";
+        c.el.style.top =
+          c.el.offsetTop + (dy / dist) * speed + "px";
       }
-
-      let speed = 2.5;
-      c.el.style.left = cx + dx/dist * speed + "px";
-      c.el.style.top = cy + dy/dist * speed + "px";
     }
   });
+
+  lastMX = mx;
+  lastMY = my;
 });
 
 function spawnDefuse() {
